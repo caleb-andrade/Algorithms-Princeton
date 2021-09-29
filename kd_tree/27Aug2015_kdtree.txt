@@ -1,0 +1,196 @@
+/*----------------------------------------------------------------------
+ * Author:         Caleb Andrade
+ * Created:        Aug/24/2015
+ * Last modified:  Aug/24/2015
+ * 
+ * 2d-tree implementation. Write a mutable data type KdTree.java that uses 
+ * a 2d-tree to implement the same API (but replace PointSET with KdTree). 
+ * A 2d-tree is a generalization of a BST to two-dimensional keys. 
+ * The idea is to build a BST with points in the nodes, using the x- and 
+ * y-coordinates of the points as keys in strictly alternating sequence.
+ -----------------------------------------------------------------------*/
+import edu.princeton.cs.algs4.Point2D;
+import edu.princeton.cs.algs4.RectHV;
+import edu.princeton.cs.algs4.Stack;
+
+public class KdTree {
+    private int N; // size of 2d-tree
+    private Node root; // start node of 2d-tree
+    private Stack<Node> stack; // stack to implement DFS for draw()
+    
+    
+    // define an inner class to represent a Node
+    private class Node {
+        private Point2D pt;     // the point
+        private RectHV rect;    // the axis-aligned rectangle corresponding to this node
+        private Node lb;        // the left/bottom subtree
+        private Node rt;        // the right/top subtree
+    }
+    
+    // initialize the 2d-tree
+    public KdTree(){ 
+        root = new Node();
+        N = 0;
+    }
+    
+    // is the set empty?
+    public boolean isEmpty() { 
+        return N == 0; 
+    }
+    
+    // number of points in the set
+    public int size() { 
+        return N;
+    }
+    
+    // helper mode that constructs the rectangle of the point added
+    private RectHV box(double ac, double bc, Node b, boolean even) {
+        RectHV r = b.rect;
+        if (even && ac < bc) {
+            return new RectHV(r.xmin(), r.ymin(), b.pt.x(), r.ymax());
+        }
+        else if (even && ac >= bc) {
+            return new RectHV(b.pt.x(), r.ymin(), r.xmax(), r.ymax());
+        }
+        else if (!even && ac < bc) {
+            return new RectHV(r.xmin(), r.ymin(), r.xmax(), b.pt.y());
+        }
+        else {
+            return new RectHV(r.xmin(), b.pt.y(), r.xmax(), r.ymax());
+        }
+    }
+          
+     /* 
+     * helper method to perform a search in the tree. The "even" argument
+     * refers to the depth's parity, depending on that, the x or y coorinates 
+     * will be compared. Returns the last node of the search.
+     */
+    private Node search(Node a, Node b, boolean even, boolean flag) {
+        if (b == null || a.pt.equals(b.pt)) return b;
+        double ac, bc;
+        if (even) { ac = a.pt.x(); bc = b.pt.x(); }
+        else      { ac = a.pt.y(); bc = b.pt.y(); }
+        if (flag) {
+            a.rect = box(ac, bc, b, even);
+            StdOut.println("children of parent " + b.pt + ": left: " + b.lb + "    right: " + b.rt);
+            if (ac < bc && b.lb == null) { b.lb = a; StdOut.println("inserted to the parent's left: " + b.lb.pt); return null; }
+            else if (ac >= bc && b.rt == null) { b.rt = a; StdOut.println("inserted to the parent's right: " + b.rt.pt); return null; }
+        }
+        if (ac < bc) { return search(a, b.lb, !even, flag); }
+        else         { return search(a, b.rt, !even, flag); }
+    }
+           
+    // helper function that tests if argument is null
+    private void nulltest (Point2D p) {
+        if (p == null) throw new NullPointerException("Null point");
+    }     
+            
+    // add the node to the 2d-tree (if it is not already in it)
+    public void insert(Point2D p) { 
+        nulltest(p);
+        Node node = new Node();
+        node.pt = p;
+        if (root.pt == null) { 
+            root.pt = p; 
+            root.rect = new RectHV(0.0, 0.0, 1.0, 1.0);
+            N++;}
+        else if (search(node, root, true, true) == null) { StdOut.println("was not in tree, inserted\n"); N++; }
+        else { StdOut.println( "Already was in tree! not inserted\n"); }
+    }
+        
+    // does the set contain point p?
+    public boolean contains(Point2D p) { 
+        nulltest(p);
+        Node temp = new Node();
+        temp.pt = p;
+        return search(temp, root, true, false) != null;        
+    }
+    
+    // helper method to explore tree and draw it
+    private void explore (Node node, boolean even) {
+        StdOut.println("Size of stack: " + stack.size());
+        if (node == null) { StdOut.println("Null leaf!"); return; }
+        stack.push(node);
+        StdOut.println("Pushed onto stack point" + node.pt);
+        explore(node.lb, !even);
+        explore(node.rt, !even);
+        StdOut.println("Popped off from stack point" + node.pt);
+        Node temp = stack.pop();
+        temp.pt.draw();
+        RectHV r = temp.rect;
+        if(even) { 
+            StdDraw.setPenColor(255, 0, 0);
+            StdDraw.line(temp.pt.x(), r.ymin(), temp.pt.x(), r.ymax());
+        }
+        else {
+            StdDraw.setPenColor(0, 0, 255);
+            StdDraw.line(r.xmin(), temp.pt.y(), r.xmax(), temp.pt.y());
+        }
+    }
+        
+    
+    // draw all points to standard draw
+    public void draw() {
+        stack = new Stack<Node>();
+        explore(root, true);
+    }
+    
+    
+     /* // all points that are inside the rectangle
+    public Iterable<Point2D> range(RectHV rect) {
+        if (rect == null) throw new NullPointerException("Null rectangle");
+        
+    }
+     
+    // a nearest neighbor to the point p; null if set is empty
+    public Point2D nearest(Point2D p) {
+        nulltest(p);
+        
+        
+    }
+    */
+    
+    // unit testing of the methods
+    public static void main(String[] args) {
+        StdOut.println("\nSimple unit testing");
+        KdTree test = new KdTree();
+        StdOut.println("Is point set empty?: " + test.isEmpty());
+        StdOut.println("Point set size: " + test.size());
+        Point2D pA, pB, pC, pD, pE, pF, pG, pH;
+        pA = new Point2D(0.03, 0.84);
+        pB = new Point2D(0.94, 0.69);
+        pC = new Point2D(0.21, 0.11);
+        pD = new Point2D(0.84, 0.78);
+        pE = new Point2D(0.32, 0.36);
+        pF = new Point2D(0.01, 0.02);
+        pG = new Point2D(0.52, 0.65);
+        pH = new Point2D(0.54, 0.96);
+        StdOut.println("\nInserting point pA " + pA);
+        test.insert(pA);
+        StdOut.println("Does point set contains pA? " + test.contains(pA));
+        StdOut.println("Does point set contains pB? " + test.contains(pB));
+        StdOut.println("\nInserting point pB " + pB);
+        test.insert(pB);
+        StdOut.println("Inserting point pC " + pC);
+        test.insert(pC);
+        StdOut.println("Inserting again point pC " + pC);
+        test.insert(pC);
+        StdOut.println("Inserting point pD " + pD);
+        test.insert(pD);
+        StdOut.println("Inserting point pE " + pE);
+        test.insert(pE);
+        StdOut.println("Inserting point pF " + pF);
+        test.insert(pF);
+        StdOut.println("Inserting point pG " + pG);
+        test.insert(pG);
+        StdOut.println("Does point set contains pC? " + test.contains(pC));
+        StdOut.println("Point set size: " + test.size());
+        StdOut.println("Is point set empty?: " + test.isEmpty());
+        StdOut.println("\nLets draw the points!");
+        test.draw();
+        //StdOut.println("Nearest neighbor to p4: " + test.nearest(p4));
+        //RectHV rect = new RectHV(0.2, 0.2, 0.7, 0.6);
+        //StdOut.println("Points inside rect: " + test.range(rect));
+        //test.insert(null);
+    }
+}
